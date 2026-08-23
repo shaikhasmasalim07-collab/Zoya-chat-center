@@ -448,9 +448,9 @@ export const CartSheet: React.FC<CartSheetProps> = ({
           )}
         </div>
 
-        {/* Footer & Actions */}
+        {/* Footer & Actions with Safe Clearance from Netlify Badge */}
         {items.length > 0 && (
-          <div className="p-3 sm:p-4 border-t border-[#E6E5E4] bg-[#F7F7F6] space-y-2.5">
+          <div className="p-3 sm:p-4 pb-20 sm:pb-4 border-t border-[#E6E5E4] bg-[#F7F7F6] space-y-2.5">
             {/* Warning if no table selected */}
             {tableNumber === null && (
               <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] flex items-center gap-1.5">

@@ -18,3 +18,5 @@ export const RESTAURANT_DETAILS: RestaurantInfo = {
 export const ADMIN_EMAILS = [
   'shaikhshabib71@gmail.com',
 ];
+
+export const ADMIN_PASSWORD = 'shaikhshabibraj';

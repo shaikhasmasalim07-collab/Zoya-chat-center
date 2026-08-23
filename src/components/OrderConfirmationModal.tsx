@@ -218,21 +218,8 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-3.5 sm:p-4 border-t border-[#E6E5E4] bg-[#F7F7F6] flex gap-2 shrink-0">
-          <button
-            id="cancel-confirm-btn"
-            type="button"
-            disabled={isSubmitting}
-            onClick={() => {
-              playTapSound();
-              onClose();
-            }}
-            className="flex-1 py-2.5 px-3 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-100 transition-colors disabled:opacity-50"
-          >
-            Review Cart
-          </button>
-
+        {/* Footer Actions - Stacked with Safe Clearance from Netlify Badge */}
+        <div className="p-3.5 sm:p-4 pb-20 sm:pb-4 border-t border-[#E6E5E4] bg-[#F7F7F6] flex flex-col gap-2 shrink-0">
           <button
             id="final-confirm-order-btn"
             type="button"
@@ -241,19 +228,41 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
               playTapSound();
               onConfirm();
             }}
-            className="flex-1 py-2.5 px-3 rounded-xl bg-[#516B84] text-white hover:bg-[#3E5367] font-semibold text-xs transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-75 disabled:cursor-not-allowed"
+            className="w-full py-3 px-4 rounded-xl bg-[#516B84] text-white hover:bg-[#3E5367] font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-between disabled:opacity-75 disabled:cursor-not-allowed active:scale-98 cursor-pointer"
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Sending...</span>
-              </>
-            ) : (
-              <>
-                <Check className="w-3.5 h-3.5 stroke-[3]" />
-                <span>Confirm Order</span>
-              </>
-            )}
+            <div className="flex items-center gap-1.5 font-bold font-['Outfit'] text-base">
+              <span>₹{grandTotal}</span>
+              <span className="text-[11px] font-normal text-slate-200 pl-1 border-l border-white/30">
+                {paymentMethod === 'online' ? 'UPI' : 'Cash'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs font-bold tracking-wide">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Sending Order to Kitchen...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>Confirm Table Order ➔</span>
+                </>
+              )}
+            </div>
+          </button>
+
+          <button
+            id="cancel-confirm-btn"
+            type="button"
+            disabled={isSubmitting}
+            onClick={() => {
+              playTapSound();
+              onClose();
+            }}
+            className="w-full py-2 px-3 rounded-lg text-slate-600 font-semibold text-xs hover:bg-slate-200/60 transition-colors disabled:opacity-50 text-center"
+          >
+            ← Back to Review Cart & Edit Items
           </button>
         </div>
       </div>
