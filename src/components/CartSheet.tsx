@@ -255,6 +255,22 @@ export const CartSheet: React.FC<CartSheetProps> = ({
                 </div>
               ))}
 
+              {/* Add More Items Button inside cart list */}
+              <div className="pt-2">
+                <button
+                  id="cart-continue-ordering-btn"
+                  type="button"
+                  onClick={() => {
+                    playTapSound();
+                    onClose();
+                  }}
+                  className="w-full py-2 px-3 rounded-xl border border-dashed border-[#516B84]/50 bg-[#EBF0F5]/50 hover:bg-[#EBF0F5] text-[#516B84] font-semibold text-xs transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-98"
+                >
+                  <span className="text-sm leading-none font-bold">+</span>
+                  <span>Add More Dishes to Order</span>
+                </button>
+              </div>
+
               {/* Coupon Code Box */}
               <div className="pt-3">
                 <div className="bg-[#F7F7F6] p-2.5 rounded-xl border border-[#d8d6d3]">
@@ -477,20 +493,8 @@ export const CartSheet: React.FC<CartSheetProps> = ({
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-2 pt-0.5">
-              <button
-                id="cart-continue-ordering-btn"
-                type="button"
-                onClick={() => {
-                  playTapSound();
-                  onClose();
-                }}
-                className="py-2 sm:py-2.5 px-2 rounded-xl border border-[#516B84]/40 bg-white text-[#516B84] hover:bg-[#516B84] hover:text-white font-semibold text-xs transition-all text-center"
-              >
-                + Add More
-              </button>
-
+            {/* Redesigned Prominent Proceed Button at Bottom */}
+            <div className="pt-1">
               <button
                 id="cart-place-order-btn"
                 type="button"
@@ -510,10 +514,19 @@ export const CartSheet: React.FC<CartSheetProps> = ({
                     );
                   }
                 }}
-                className="py-2 sm:py-2.5 px-3 rounded-xl bg-[#516B84] text-white hover:bg-[#3E5367] font-semibold text-xs transition-all shadow-md flex items-center justify-center gap-1"
+                className="w-full py-3 px-4 rounded-xl bg-[#516B84] text-white hover:bg-[#3E5367] font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-between active:scale-98 group cursor-pointer"
               >
-                <span>Proceed</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-2">
+                  <span className="font-['Outfit'] text-base">₹{finalGrandTotal}</span>
+                  <span className="text-[11px] font-normal text-slate-200 border-l border-white/30 pl-2">
+                    {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'} · {paymentMethod === 'online' ? 'UPI' : 'Cash'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 font-semibold text-xs tracking-wide">
+                  <span>{tableNumber === null ? 'Select Table to Proceed' : 'Proceed to Confirm'}</span>
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                </div>
               </button>
             </div>
           </div>

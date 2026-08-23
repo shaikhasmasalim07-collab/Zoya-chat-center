@@ -5,10 +5,10 @@ import { playTapSound } from '../utils/sound';
 
 interface FooterProps {
   onOpenAdmin?: () => void;
-  isAdminActiveOnOtherDevice?: boolean;
+  isAdminActive?: boolean;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminActiveOnOtherDevice }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminActive }) => {
   return (
     <footer
       id="main-app-footer"
@@ -108,24 +108,28 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminActiveOnOthe
           </div>
         </div>
 
-        {/* Subtle discreet owner access through copyright footer - No 'Admin Panel' text displayed */}
+        {/* Copyright */}
         <div className="pt-2 text-[11px] text-slate-500 flex items-center justify-center gap-1 select-none">
-          {onOpenAdmin ? (
+          <span>© {new Date().getFullYear()} {RESTAURANT_DETAILS.name} · Aurangabad</span>
+        </div>
+
+        {/* Admin Panel button at the absolute bottom - Real-time disappears from all devices once logged in */}
+        {onOpenAdmin && !isAdminActive && (
+          <div className="pt-1 flex items-center justify-center animate-fadeIn">
             <button
-              id="footer-owner-entry-btn"
+              id="footer-admin-panel-btn"
               type="button"
               onClick={() => {
                 playTapSound();
                 onOpenAdmin();
               }}
-              className="text-slate-500 hover:text-[#516B84] transition-colors py-1 px-2 rounded-md hover:bg-slate-200/50"
+              className="text-xs font-semibold text-slate-500 hover:text-[#516B84] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 hover:bg-white border border-[#d8d6d3] transition-all shadow-2xs hover:shadow-xs active:scale-95"
             >
-              © {new Date().getFullYear()} {RESTAURANT_DETAILS.name} · Aurangabad
+              <ShieldCheck className="w-3.5 h-3.5 text-[#516B84]" />
+              <span>Admin Panel</span>
             </button>
-          ) : (
-            <span>© {new Date().getFullYear()} {RESTAURANT_DETAILS.name} · Aurangabad</span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </footer>
   );

@@ -629,7 +629,7 @@ export default function App() {
       {/* Minimalist Footer with Direct Contact Links */}
       <Footer
         onOpenAdmin={handleOpenAdminTrigger}
-        isAdminActiveOnOtherDevice={isSessionLockedOnOtherDevice}
+        isAdminActive={adminSession.isActive}
       />
     </div>
   );
