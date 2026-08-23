@@ -1,0 +1,8 @@
+{
+  "name": "Remix Zoya Chat Digital Order",
+  "description": "A premium, minimalist mobile-first ordering system for Zoya Chat Center customers to select tables and order food seamlessly.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

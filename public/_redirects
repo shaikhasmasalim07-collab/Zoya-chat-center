@@ -1,0 +1,4 @@
+/api/ai/generate-dish    /.netlify/functions/generate-dish    200
+/api/ai/suggest-menu     /.netlify/functions/suggest-menu     200
+/api/health              /.netlify/functions/health           200
+/*                       /index.html                          200

@@ -1,0 +1,164 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "Customer table food order at Zoya Chat Center",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique Order ID (e.g. ZC1024)"
+        },
+        "tableNumber": {
+          "type": "number",
+          "description": "Restaurant table number (1 to 10+)"
+        },
+        "items": {
+          "type": "array",
+          "description": "Itemized list of dishes and quantities ordered"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Grand total bill amount in INR (₹)"
+        },
+        "subtotalAmount": {
+          "type": "number",
+          "description": "Original subtotal amount before discount"
+        },
+        "discountAmount": {
+          "type": "number",
+          "description": "Discount deducted via coupon code"
+        },
+        "couponCode": {
+          "type": "string",
+          "description": "Applied discount coupon code"
+        },
+        "totalItems": {
+          "type": "number",
+          "description": "Total quantity of items"
+        },
+        "customerNotes": {
+          "type": "string",
+          "description": "Optional cooking and dietary instructions"
+        },
+        "orderTime": {
+          "type": "string",
+          "description": "ISO timestamp of order creation"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["new", "accepted", "preparing", "ready", "completed", "cancelled"],
+          "description": "Live order progress status in kitchen"
+        },
+        "paymentStatus": {
+          "type": "string",
+          "enum": ["pending", "paid"],
+          "description": "Payment settlement status"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["id", "tableNumber", "items", "totalAmount", "status", "orderTime"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "Food catalog item served at Zoya Chat Center",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "category": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        },
+        "isVeg": {
+          "type": "boolean"
+        },
+        "isAvailable": {
+          "type": "boolean"
+        },
+        "isPopular": {
+          "type": "boolean"
+        },
+        "isSpicy": {
+          "type": "boolean"
+        },
+        "preparationTime": {
+          "type": "number"
+        }
+      },
+      "required": ["id", "name", "price", "category", "image", "isVeg", "isAvailable"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "Discount promo voucher code",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "description": { "type": "string" },
+        "discountType": { "type": "string", "enum": ["percentage", "flat"] },
+        "discountValue": { "type": "number" },
+        "minOrderAmount": { "type": "number" },
+        "maxDiscount": { "type": "number" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "code", "discountType", "discountValue", "minOrderAmount", "isActive"]
+    },
+    "PromoBanner": {
+      "title": "PromoBanner",
+      "description": "Promotional billboard and announcement card",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "tag": { "type": "string" },
+        "bgGradient": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "title", "subtitle", "bgGradient", "isActive"]
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/Order"
+      },
+      "description": "Collection of all live and past customer table orders"
+    },
+    "/menu_items/{itemId}": {
+      "schema": {
+        "$ref": "#/entities/MenuItem"
+      },
+      "description": "Collection of available food catalog dishes"
+    },
+    "/coupons/{couponId}": {
+      "schema": {
+        "$ref": "#/entities/Coupon"
+      },
+      "description": "Collection of discount promo codes"
+    },
+    "/promo_banners/{bannerId}": {
+      "schema": {
+        "$ref": "#/entities/PromoBanner"
+      },
+      "description": "Collection of promotional announcement banners"
+    }
+  }
+}
