@@ -11,6 +11,8 @@ import {
   Banknote,
   ExternalLink,
   User,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 import { playTapSound } from '../utils/sound';
 import { PaymentModeSelector } from './PaymentModeSelector';
@@ -228,11 +230,11 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
               playTapSound();
               onConfirm();
             }}
-            className="w-full py-3 px-4 rounded-xl bg-[#516B84] text-white hover:bg-[#3E5367] font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-between disabled:opacity-75 disabled:cursor-not-allowed active:scale-98 cursor-pointer"
+            className="w-full py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-between disabled:opacity-75 disabled:cursor-not-allowed active:scale-98 cursor-pointer"
           >
-            <div className="flex items-center gap-1.5 font-bold font-['Outfit'] text-base">
+            <div className="flex items-center gap-1.5 font-bold font-['Outfit'] text-base text-white">
               <span>₹{grandTotal}</span>
-              <span className="text-[11px] font-normal text-slate-200 pl-1 border-l border-white/30">
+              <span className="text-[11px] font-normal text-emerald-100 pl-1 border-l border-white/30">
                 {paymentMethod === 'online' ? 'UPI' : 'Cash'}
               </span>
             </div>
@@ -241,12 +243,12 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Sending Order to Kitchen...</span>
+                  <span>Placing Order...</span>
                 </>
               ) : (
                 <>
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>Confirm Table Order ➔</span>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Confirm & Send on WhatsApp ➔</span>
                 </>
               )}
             </div>

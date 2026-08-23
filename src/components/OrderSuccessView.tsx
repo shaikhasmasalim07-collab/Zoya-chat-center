@@ -24,6 +24,7 @@ import { UPI_CONFIG } from '../utils/paymentUtils';
 import { orderService } from '../services/orderService';
 import { InvoiceModal } from './InvoiceModal';
 import { formatOrderWhatsAppInvoice, getWhatsAppDirectUrl } from '../utils/invoiceGenerator';
+import { RESTAURANT_DETAILS } from '../data/restaurantInfo';
 
 interface OrderSuccessViewProps {
   order: Order;
@@ -297,8 +298,40 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
           </div>
         </div>
 
+        {/* Direct WhatsApp Notification Banner */}
+        <div className="mb-4 p-3 rounded-2xl bg-[#EBF0F5] border border-[#516B84]/30 text-left flex items-start gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-[#25D366] text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Share2 className="w-4 h-4" />
+          </div>
+          <div className="flex-1 text-xs">
+            <h5 className="font-bold text-slate-800 font-['Outfit'] flex items-center gap-1.5">
+              <span>Direct WhatsApp Order Delivery</span>
+              <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 font-semibold rounded text-[10px]">Active</span>
+            </h5>
+            <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+              Order WhatsApp pe <strong className="text-slate-800 font-semibold">{RESTAURANT_DETAILS.phone}</strong> par send ho gaya hai. Aap niche diye gaye button se dobara bhi message bhej sakte hain.
+            </p>
+          </div>
+        </div>
+
         {/* Actions */}
         <div className="space-y-2">
+          {/* Prominent Direct WhatsApp Button */}
+          <button
+            id="success-whatsapp-send-owner-btn"
+            type="button"
+            onClick={() => {
+              playTapSound();
+              const msg = formatOrderWhatsAppInvoice(currentOrder);
+              const url = getWhatsAppDirectUrl(RESTAURANT_DETAILS.whatsapp, msg);
+              window.open(url, '_blank');
+            }}
+            className="w-full py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+          >
+            <Share2 className="w-4 h-4 stroke-[2.5]" />
+            <span>Send / View Order on WhatsApp ({RESTAURANT_DETAILS.phone})</span>
+          </button>
+
           <div className="grid grid-cols-2 gap-2">
             <button
               id="success-view-bill-btn"
@@ -314,33 +347,18 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({
             </button>
 
             <button
-              id="success-whatsapp-bill-btn"
+              id="order-more-items-btn"
               type="button"
               onClick={() => {
                 playTapSound();
-                const msg = formatOrderWhatsAppInvoice(currentOrder);
-                const url = getWhatsAppDirectUrl(currentOrder.customerPhone, msg);
-                window.open(url, '_blank');
+                onOrderMore();
               }}
-              className="py-2.5 px-3 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white font-semibold text-xs transition-all flex items-center justify-center gap-1.5 shadow-2xs"
+              className="py-2.5 px-3 rounded-xl bg-[#516B84] text-white font-semibold text-xs hover:bg-[#3E5367] active:scale-98 transition-all shadow-2xs flex items-center justify-center gap-1.5"
             >
-              <Share2 className="w-3.5 h-3.5" />
-              <span>WhatsApp Bill</span>
+              <span>+ Order More</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
-
-          <button
-            id="order-more-items-btn"
-            type="button"
-            onClick={() => {
-              playTapSound();
-              onOrderMore();
-            }}
-            className="w-full py-2.5 sm:py-3 px-4 rounded-xl bg-[#516B84] text-white font-semibold text-xs sm:text-sm hover:bg-[#3E5367] active:scale-98 transition-all shadow-md flex items-center justify-center gap-1.5"
-          >
-            <span>Order More Items</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Invoice Modal */}

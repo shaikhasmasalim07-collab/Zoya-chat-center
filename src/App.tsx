@@ -21,6 +21,7 @@ import { playNewOrderAlertSound, playTapSound, unlockAudio } from './utils/sound
 import { Search, Sparkles, Utensils, X, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { RESTAURANT_DETAILS, ADMIN_EMAILS } from './data/restaurantInfo';
 import { PaymentAppType } from './utils/paymentUtils';
+import { formatOrderWhatsAppInvoice, getWhatsAppDirectUrl } from './utils/invoiceGenerator';
 
 const TABLE_STORAGE_KEY = 'zoya_active_table_v1';
 const CART_STORAGE_KEY = 'zoya_active_cart_v1';
@@ -300,12 +301,23 @@ export default function App() {
         pendingCustomerPhone
       );
 
-      // Clean cart and show success
+      // Instant UI transition - zero delays or getting stuck
       setCartItems([]);
       setIsConfirmModalOpen(false);
       setIsSubmittingOrder(false);
       setActiveSuccessOrder(newOrder);
       playNewOrderAlertSound();
+
+      // Direct WhatsApp Integration: Send full formatted order details directly to owner WhatsApp
+      try {
+        const waMessage = formatOrderWhatsAppInvoice(newOrder, pendingCustomerName, pendingCustomerPhone);
+        const waUrl = getWhatsAppDirectUrl(RESTAURANT_DETAILS.whatsapp, waMessage);
+        
+        // Open WhatsApp directly in new window/tab or app
+        window.open(waUrl, '_blank');
+      } catch (waErr) {
+        console.warn('Could not auto-open WhatsApp URL:', waErr);
+      }
     } catch (err) {
       console.error('Failed to submit order:', err);
       setIsSubmittingOrder(false);

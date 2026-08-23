@@ -292,55 +292,66 @@ class OrderService {
       updatedAt: now,
     };
 
-    // Optimistic Local update
+    // Optimistic Local update (Instantaneous)
     this.orders.unshift(newOrder);
     this.persistLocalOnly();
     this.notify();
 
     if (this.broadcastChannel) {
-      this.broadcastChannel.postMessage({
-        type: 'NEW_ORDER_CREATED',
-        payload: newOrder,
-      });
+      try {
+        this.broadcastChannel.postMessage({
+          type: 'NEW_ORDER_CREATED',
+          payload: newOrder,
+        });
+      } catch (e) {
+        console.warn('BroadcastChannel error:', e);
+      }
     }
 
-    this.newOrderListeners.forEach((cb) => cb(newOrder));
-
-    // Save to Firestore Cloud Database
-    if (USE_FIREBASE) {
+    this.newOrderListeners.forEach((cb) => {
       try {
-        const orderPayload: Record<string, any> = {
-          id: newOrder.id,
-          tableNumber: newOrder.tableNumber,
-          customerName: newOrder.customerName || '',
-          customerPhone: newOrder.customerPhone || '',
-          items: newOrder.items.map((it) => ({
-            id: it.id,
-            name: it.name,
-            price: it.price,
-            quantity: it.quantity,
-            isVeg: it.isVeg,
-            specialNotes: it.specialNotes || '',
-          })),
-          subtotalAmount: newOrder.subtotalAmount,
-          discountAmount: newOrder.discountAmount || 0,
-          couponCode: newOrder.couponCode || '',
-          totalAmount: newOrder.totalAmount,
-          totalItems: newOrder.totalItems,
-          customerNotes: newOrder.customerNotes || '',
-          orderTime: newOrder.orderTime,
-          status: newOrder.status,
-          paymentStatus: newOrder.paymentStatus,
-          paymentMethod: newOrder.paymentMethod || 'online',
-          selectedUpiApp: newOrder.selectedUpiApp || '',
-          updatedAt: newOrder.updatedAt,
-        };
-
-        await setDoc(doc(db, 'orders', newOrder.id), orderPayload);
-        console.log(`✅ Order ${newOrder.id} successfully saved to Firestore.`);
-      } catch (err) {
-        console.error('Error saving order to Firestore:', err);
+        cb(newOrder);
+      } catch (e) {
+        console.warn('Listener error:', e);
       }
+    });
+
+    // Save to Firestore Cloud Database in background (non-blocking so UI never hangs on 'Sending')
+    if (USE_FIREBASE) {
+      const orderPayload: Record<string, any> = {
+        id: newOrder.id,
+        tableNumber: newOrder.tableNumber,
+        customerName: newOrder.customerName || '',
+        customerPhone: newOrder.customerPhone || '',
+        items: newOrder.items.map((it) => ({
+          id: it.id,
+          name: it.name,
+          price: it.price,
+          quantity: it.quantity,
+          isVeg: it.isVeg,
+          specialNotes: it.specialNotes || '',
+        })),
+        subtotalAmount: newOrder.subtotalAmount,
+        discountAmount: newOrder.discountAmount || 0,
+        couponCode: newOrder.couponCode || '',
+        totalAmount: newOrder.totalAmount,
+        totalItems: newOrder.totalItems,
+        customerNotes: newOrder.customerNotes || '',
+        orderTime: newOrder.orderTime,
+        status: newOrder.status,
+        paymentStatus: newOrder.paymentStatus,
+        paymentMethod: newOrder.paymentMethod || 'online',
+        selectedUpiApp: newOrder.selectedUpiApp || '',
+        updatedAt: newOrder.updatedAt,
+      };
+
+      setDoc(doc(db, 'orders', newOrder.id), orderPayload)
+        .then(() => {
+          console.log(`✅ Order ${newOrder.id} saved to Firestore.`);
+        })
+        .catch((err) => {
+          console.warn('Background Firestore save notice (order is safe locally):', err);
+        });
     }
 
     return newOrder;
