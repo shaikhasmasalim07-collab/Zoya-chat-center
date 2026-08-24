@@ -111,3 +111,29 @@ export interface RestaurantInfo {
   mapsUrl: string;
   totalTables: number;
 }
+
+export interface UserProfile {
+  uid: string;
+  name: string;
+  email: string;
+  photoUrl?: string;
+  provider: 'google' | 'password' | 'guest';
+  isAdmin?: boolean;
+}
+
+export interface CustomerReview {
+  id: string;
+  name: string;
+  rating: number; // 1 to 5
+  comment: string;
+  dishName?: string;
+  tags?: string[];
+  createdAt: string; // ISO string
+  likesCount?: number;
+  tableNumber?: number;
+  isVerified?: boolean;
+  userId?: string;
+  userEmail?: string;
+  userPhotoUrl?: string;
+  authProvider?: 'google' | 'password' | 'guest';
+}

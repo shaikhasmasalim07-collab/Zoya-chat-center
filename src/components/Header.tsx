@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, Sparkles, ChefHat, Clock, ShieldCheck } from 'lucide-react';
+import { ShoppingBag, Sparkles, ChefHat, Clock } from 'lucide-react';
 import { RESTAURANT_DETAILS } from '../data/restaurantInfo';
 import { playTapSound } from '../utils/sound';
 
@@ -10,7 +10,6 @@ interface HeaderProps {
   onOpenCart: () => void;
   onSelectTable: () => void;
   onOpenOrderTracker: () => void;
-  onOpenAdmin?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,25 +19,10 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCart,
   onSelectTable,
   onOpenOrderTracker,
-  onOpenAdmin,
 }) => {
-  const [logoTapCount, setLogoTapCount] = React.useState(0);
-
   const handleLogoTap = () => {
     playTapSound();
-    const newCount = logoTapCount + 1;
-    if (newCount >= 3) {
-      setLogoTapCount(0);
-      if (onOpenAdmin) {
-        onOpenAdmin();
-      } else {
-        onSelectTable();
-      }
-    } else {
-      setLogoTapCount(newCount);
-      setTimeout(() => setLogoTapCount(0), 1500);
-      onSelectTable();
-    }
+    onSelectTable();
   };
   return (
     <header

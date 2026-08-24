@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MenuItem, CategoryId, Category, CartItem, Order, OrderStatus, AdminSession } from './types';
+import { AnimatePresence } from 'motion/react';
+import { MenuItem, CategoryId, Category, CartItem, Order, OrderStatus, UserProfile } from './types';
 import { menuService } from './services/menuService';
 import { orderService } from './services/orderService';
 import { categoryService } from './services/categoryService';
-import { adminSessionService } from './services/adminSessionService';
+import { authService } from './services/authService';
 import { Header } from './components/Header';
 import { TableSelector } from './components/TableSelector';
 import { CategoryTabs } from './components/CategoryTabs';
@@ -13,20 +14,25 @@ import { FloatingCartBar } from './components/FloatingCartBar';
 import { OrderConfirmationModal } from './components/OrderConfirmationModal';
 import { OrderSuccessView } from './components/OrderSuccessView';
 import { ActiveOrdersModal } from './components/ActiveOrdersModal';
-import { AdminDashboard } from './components/AdminDashboard';
-import { AdminPINModal } from './components/AdminPINModal';
 import { PromoCarousel } from './components/PromoCarousel';
+import { ReviewsSection } from './components/ReviewsSection';
+import { AdminDashboard } from './components/AdminDashboard';
+import { SplashScreen } from './components/SplashScreen';
 import { Footer } from './components/Footer';
 import { playNewOrderAlertSound, playTapSound, unlockAudio } from './utils/sound';
-import { Search, Sparkles, Utensils, X, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { RESTAURANT_DETAILS, ADMIN_EMAILS } from './data/restaurantInfo';
+import { Search, Sparkles, Utensils, X } from 'lucide-react';
+import { RESTAURANT_DETAILS } from './data/restaurantInfo';
 import { PaymentAppType } from './utils/paymentUtils';
 import { formatOrderWhatsAppInvoice, getWhatsAppDirectUrl } from './utils/invoiceGenerator';
+import { firestoreSyncService } from './services/firestoreSyncService';
 
 const TABLE_STORAGE_KEY = 'zoya_active_table_v1';
 const CART_STORAGE_KEY = 'zoya_active_cart_v1';
 
 export default function App() {
+  // State: 2.5-second Splash Screen on initial load
+  const [showSplash, setShowSplash] = useState(true);
+
   // State: Table selection
   const [selectedTable, setSelectedTable] = useState<number | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -71,18 +77,20 @@ export default function App() {
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [activeSuccessOrder, setActiveSuccessOrder] = useState<Order | null>(null);
   const [isOrderTrackerOpen, setIsOrderTrackerOpen] = useState(false);
-
-  // State: Admin Panel & Real-time Single Device Session Lock
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isAdminPinModalOpen, setIsAdminPinModalOpen] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const [adminEmail, setAdminEmail] = useState<string>(ADMIN_EMAILS[0]);
-  const [adminSession, setAdminSession] = useState<AdminSession>(() => adminSessionService.getCurrentSession());
-  const [kickOutAlert, setKickOutAlert] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Sync menu, categories, orders, audio, and admin session lock
+  // State: User Auth & Admin Panel
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => authService.getCurrentUser());
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  // Sync menu, categories, and orders
   useEffect(() => {
+    firestoreSyncService.autoSeedIfEmpty();
+
+    const unsubAuth = authService.subscribe((user) => {
+      setCurrentUser(user);
+    });
+
     const unsubMenu = menuService.subscribe((items) => {
       setMenuItems(items);
     });
@@ -109,33 +117,14 @@ export default function App() {
       }
     });
 
-    // Real-time Single-Device Admin Session sync
-    const unsubAdminSession = adminSessionService.subscribe((session, isCurrentActive) => {
-      setAdminSession(session);
-      if (!isCurrentActive && isAdminOpen) {
-        setIsAdminOpen(false);
-        setIsAdminAuthenticated(false);
-      }
-    });
-
-    // When another phone takes over admin session, instantly kick out and notify
-    const unsubKickOut = adminSessionService.onKickOut((remoteEmail) => {
-      setIsAdminOpen(false);
-      setIsAdminAuthenticated(false);
-      setKickOutAlert(
-        `Admin logged in on another phone (${remoteEmail || 'owner device'}). Admin panel was automatically closed here for single-device security.`
-      );
-    });
-
     return () => {
+      unsubAuth();
       unsubMenu();
       unsubCategories();
       unsubOrders();
       unsubNewOrderAudio();
-      unsubAdminSession();
-      unsubKickOut();
     };
-  }, [soundEnabled, isAdminOpen]);
+  }, [soundEnabled]);
 
   // Persist Table and Cart changes
   useEffect(() => {
@@ -330,55 +319,80 @@ export default function App() {
     setIsChangingTable(false);
   };
 
-  // Admin access
-  const handleOpenAdminTrigger = () => {
-    playTapSound();
-    if (isAdminAuthenticated && adminSessionService.isCurrentDeviceActive()) {
-      setIsAdminOpen((prev) => !prev);
-    } else {
-      setIsAdminPinModalOpen(true);
-    }
+  // Admin Actions
+  const handleUpdateOrderStatus = async (orderId: string, status: OrderStatus) => {
+    await orderService.updateOrderStatus(orderId, status);
   };
 
-  const handleAdminAuthSuccess = (email: string) => {
-    setAdminEmail(email);
-    setIsAdminAuthenticated(true);
-    setIsAdminPinModalOpen(false);
-    setIsAdminOpen(true);
-    setKickOutAlert(null);
+  const handleUpdatePaymentStatus = async (orderId: string, status: 'pending' | 'paid') => {
+    await orderService.updatePaymentStatus(orderId, status);
   };
 
-  const handleEndAdminSession = async () => {
-    await adminSessionService.endSession();
-    setIsAdminOpen(false);
-    setIsAdminAuthenticated(false);
+  const handleAddMenuItem = async (item: Omit<MenuItem, 'id'>) => {
+    await menuService.addMenuItem(item);
   };
 
-  const isSessionLockedOnOtherDevice =
-    adminSession.isActive && !adminSessionService.isCurrentDeviceActive();
+  const handleUpdateMenuItem = async (item: MenuItem) => {
+    await menuService.updateMenuItem(item);
+  };
 
-  // If Admin Mode is Active
+  const handleDeleteMenuItem = async (id: string) => {
+    await menuService.deleteMenuItem(id);
+  };
+
+  const handleToggleMenuAvailability = async (id: string) => {
+    await menuService.toggleAvailability(id);
+  };
+
+  const handleResetMenu = () => {
+    menuService.resetToDefault();
+  };
+
+  const handleAddCategory = async (name: string, iconName: string) => {
+    await categoryService.addCategory(name, iconName);
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    await categoryService.deleteCategory(id);
+  };
+
+  const handleUpdateCategory = async (id: string, name: string, iconName: string) => {
+    await categoryService.updateCategory(id, name, iconName);
+  };
+
+  const handleResetCategories = () => {
+    categoryService.resetToDefault();
+  };
+
+  const handleResetSampleOrders = () => {
+    orderService.resetToSampleOrders();
+  };
+
+  // If Admin Panel is opened by authorized admin
   if (isAdminOpen) {
     return (
       <AdminDashboard
         orders={orders}
         menuItems={menuItems}
         categories={categories}
-        adminEmail={adminEmail}
-        onUpdateOrderStatus={(id, status) => orderService.updateOrderStatus(id, status)}
-        onUpdatePaymentStatus={(id, status) => orderService.updatePaymentStatus(id, status)}
-        onAddMenuItem={(item) => menuService.addMenuItem(item)}
-        onUpdateMenuItem={(item) => menuService.updateMenuItem(item)}
-        onDeleteMenuItem={(id) => menuService.deleteMenuItem(id)}
-        onToggleMenuAvailability={(id) => menuService.toggleAvailability(id)}
-        onResetMenu={() => menuService.resetToDefault()}
-        onAddCategory={(name, icon) => categoryService.addCategory(name, icon)}
-        onDeleteCategory={(id) => categoryService.deleteCategory(id)}
-        onUpdateCategory={(id, name, icon) => categoryService.updateCategory(id, name, icon)}
-        onResetCategories={() => categoryService.resetToDefault()}
+        onUpdateOrderStatus={handleUpdateOrderStatus}
+        onUpdatePaymentStatus={handleUpdatePaymentStatus}
+        onAddMenuItem={handleAddMenuItem}
+        onUpdateMenuItem={handleUpdateMenuItem}
+        onDeleteMenuItem={handleDeleteMenuItem}
+        onToggleMenuAvailability={handleToggleMenuAvailability}
+        onResetMenu={handleResetMenu}
+        onAddCategory={handleAddCategory}
+        onDeleteCategory={handleDeleteCategory}
+        onUpdateCategory={handleUpdateCategory}
+        onResetCategories={handleResetCategories}
         onCloseAdmin={() => setIsAdminOpen(false)}
-        onEndSession={handleEndAdminSession}
-        onResetSampleOrders={() => orderService.resetToSampleOrders()}
+        onEndSession={() => {
+          authService.logout();
+          setIsAdminOpen(false);
+        }}
+        adminEmail={currentUser?.email || 'shaikhshabib71@gmail.com'}
+        onResetSampleOrders={handleResetSampleOrders}
         soundEnabled={soundEnabled}
         onToggleSound={() => setSoundEnabled((prev) => !prev)}
       />
@@ -387,23 +401,6 @@ export default function App() {
 
   return (
     <div id="zoya-app-root" className="min-h-screen flex flex-col bg-[#E6E5E4] text-[#1E293B]">
-      {/* Real-time Kick Out Alert Toast */}
-      {kickOutAlert && (
-        <div className="bg-amber-500 text-slate-950 px-3 py-2 text-xs font-semibold flex items-center justify-between gap-2 shadow-md animate-fadeIn sticky top-0 z-50">
-          <div className="flex items-center gap-2 max-w-4xl mx-auto">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-slate-900" />
-            <span>{kickOutAlert}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setKickOutAlert(null)}
-            className="p-1 text-slate-900 hover:bg-amber-600 rounded"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
       {/* Top Header (Clean customer topbar without admin buttons) */}
       <Header
         tableNumber={selectedTable}
@@ -420,10 +417,6 @@ export default function App() {
         onOpenOrderTracker={() => {
           playTapSound();
           setIsOrderTrackerOpen(true);
-        }}
-        onOpenAdmin={() => {
-          playTapSound();
-          setIsAdminPinModalOpen(true);
         }}
       />
 
@@ -571,7 +564,7 @@ export default function App() {
       </main>
 
       {/* Floating Bottom Cart Bar (Sticky on Mobile) */}
-      {!isAdminOpen && !activeSuccessOrder && selectedTable !== null && (
+      {!activeSuccessOrder && selectedTable !== null && (
         <FloatingCartBar
           itemCount={totalCartCount}
           totalAmount={totalCartAmount}
@@ -631,18 +624,25 @@ export default function App() {
         />
       )}
 
-      {/* Staff Admin PIN Lock Dialog */}
-      <AdminPINModal
-        isOpen={isAdminPinModalOpen}
-        onClose={() => setIsAdminPinModalOpen(false)}
-        onSuccess={handleAdminAuthSuccess}
+      {/* Customer Reviews & Feedback Section (Above Contact Details / Footer) */}
+      <ReviewsSection
+        tableNumber={selectedTable}
+        menuItems={menuItems}
+        onOpenAdmin={() => setIsAdminOpen(true)}
       />
 
       {/* Minimalist Footer with Direct Contact Links */}
-      <Footer
-        onOpenAdmin={handleOpenAdminTrigger}
-        isAdminActive={adminSession.isActive}
-      />
+      <Footer />
+
+      {/* 2.5-Second Opening Splash Screen */}
+      <AnimatePresence>
+        {showSplash && (
+          <SplashScreen
+            durationMs={2500}
+            onFinish={() => setShowSplash(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

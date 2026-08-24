@@ -1,14 +1,9 @@
 import React from 'react';
-import { ChefHat, ShieldCheck, Instagram, Phone, MessageCircle, MapPin, ExternalLink, Clock } from 'lucide-react';
+import { ChefHat, Instagram, Phone, MessageCircle, MapPin, ExternalLink, Clock } from 'lucide-react';
 import { RESTAURANT_DETAILS } from '../data/restaurantInfo';
 import { playTapSound } from '../utils/sound';
 
-interface FooterProps {
-  onOpenAdmin?: () => void;
-  isAdminActive?: boolean;
-}
-
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminActive }) => {
+export const Footer: React.FC = () => {
   return (
     <footer
       id="main-app-footer"
@@ -112,24 +107,6 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, isAdminActive }) =>
         <div className="pt-2 text-[11px] text-slate-500 flex items-center justify-center gap-1 select-none">
           <span>© {new Date().getFullYear()} {RESTAURANT_DETAILS.name} · Aurangabad</span>
         </div>
-
-        {/* Admin Panel button at the absolute bottom - Real-time disappears from all devices once logged in */}
-        {onOpenAdmin && !isAdminActive && (
-          <div className="pt-1 flex items-center justify-center animate-fadeIn">
-            <button
-              id="footer-admin-panel-btn"
-              type="button"
-              onClick={() => {
-                playTapSound();
-                onOpenAdmin();
-              }}
-              className="text-xs font-semibold text-slate-500 hover:text-[#516B84] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 hover:bg-white border border-[#d8d6d3] transition-all shadow-2xs hover:shadow-xs active:scale-95"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-[#516B84]" />
-              <span>Admin Panel</span>
-            </button>
-          </div>
-        )}
       </div>
     </footer>
   );

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { MenuItem } from '../types';
 import {
   Plus,
@@ -73,9 +74,13 @@ export const FoodCard: React.FC<FoodCardProps> = ({
 
   return (
     <>
-      <div
+      <motion.div
         id={`food-card-${item.id}`}
-        className={`bg-white rounded-xl sm:rounded-2xl border border-[#d8d6d3] overflow-hidden shadow-soft hover:shadow-soft-lg transition-all duration-200 flex flex-col justify-between group ${
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -4 }}
+        transition={{ duration: 0.28, ease: 'easeOut' }}
+        className={`bg-white rounded-xl sm:rounded-2xl border border-[#d8d6d3] overflow-hidden shadow-soft hover:shadow-soft-lg transition-shadow duration-200 flex flex-col justify-between group ${
           !item.isAvailable ? 'opacity-65 grayscale-[20%]' : ''
         }`}
       >
@@ -88,13 +93,13 @@ export const FoodCard: React.FC<FoodCardProps> = ({
           className="relative aspect-16/10 sm:aspect-16/10 w-full overflow-hidden bg-[#dcdad7] cursor-pointer select-none"
           title="Click to view all photos and details"
         >
-          {/* Actual Image */}
+          {/* Actual Image with smooth hover scale */}
           <img
             src={activeImage}
             alt={item.name}
             loading="lazy"
             onLoad={() => setImageLoaded(true)}
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-108 ${
               imageLoaded ? 'opacity-100' : 'opacity-0'
             }`}
           />
@@ -172,16 +177,24 @@ export const FoodCard: React.FC<FoodCardProps> = ({
           {/* Popular / Spicy / Special Tags */}
           <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
             {item.isPopular && (
-              <span className="bg-[#516B84] text-white text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full shadow-xs flex items-center gap-0.5">
+              <motion.span
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-[#516B84] text-white text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full shadow-xs flex items-center gap-0.5"
+              >
                 <Sparkles className="w-2.5 h-2.5 text-amber-300" />
                 Popular
-              </span>
+              </motion.span>
             )}
             {item.isSpicy && (
-              <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full shadow-xs flex items-center gap-0.5">
+              <motion.span
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-amber-100 text-amber-900 border border-amber-300 text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full shadow-xs flex items-center gap-0.5"
+              >
                 <Flame className="w-2.5 h-2.5 text-amber-600" />
                 Spicy
-              </span>
+              </motion.span>
             )}
           </div>
 
@@ -233,9 +246,13 @@ export const FoodCard: React.FC<FoodCardProps> = ({
                 ₹{item.price}
               </span>
               {cartQuantity > 0 && (
-                <span className="text-[9px] sm:text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">
+                <motion.span
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  className="text-[9px] sm:text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200"
+                >
                   {cartQuantity} in cart
-                </span>
+                </motion.span>
               )}
             </div>
           </div>
@@ -274,29 +291,35 @@ export const FoodCard: React.FC<FoodCardProps> = ({
                     onDecrease={() => setLocalQuantity((q) => Math.max(1, q - 1))}
                   />
 
-                  <button
+                  <motion.button
                     id={`add-to-cart-btn-${item.id}`}
                     type="button"
                     onClick={handleAdd}
                     disabled={isAddedRecently}
-                    className={`flex-1 py-1 sm:py-1.5 px-2 rounded-lg font-semibold text-xs flex items-center justify-center gap-1 transition-all duration-200 shadow-xs active:scale-95 ${
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.94 }}
+                    className={`flex-1 py-1 sm:py-1.5 px-2 rounded-lg font-semibold text-xs flex items-center justify-center gap-1 transition-all duration-200 shadow-xs cursor-pointer ${
                       isAddedRecently
                         ? 'bg-emerald-600 text-white'
                         : 'bg-[#516B84] text-white hover:bg-[#3E5367]'
                     }`}
                   >
                     {isAddedRecently ? (
-                      <>
+                      <motion.span
+                        initial={{ scale: 0.5 }}
+                        animate={{ scale: 1 }}
+                        className="flex items-center gap-1"
+                      >
                         <Check className="w-3 h-3 stroke-[3]" />
                         <span>Added</span>
-                      </>
+                      </motion.span>
                     ) : (
                       <>
                         <Plus className="w-3 h-3" />
                         <span>Add</span>
                       </>
                     )}
-                  </button>
+                  </motion.button>
                 </div>
               )
             ) : (
@@ -306,7 +329,7 @@ export const FoodCard: React.FC<FoodCardProps> = ({
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Product Detail & Multi-Image Gallery Modal */}
       <ProductDetailModal

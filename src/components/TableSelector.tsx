@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { ChefHat, Sparkles, Check, ArrowRight, Utensils, Clock, Smartphone, Instagram, Phone, MessageCircle, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChefHat, Sparkles, Check, ArrowRight, Utensils, Clock, Smartphone, Instagram, Phone, MessageCircle, MapPin, Users } from 'lucide-react';
 import { RESTAURANT_DETAILS } from '../data/restaurantInfo';
+import { tableService } from '../services/tableService';
+import { TableItem } from '../types';
 import { playTapSound } from '../utils/sound';
 
 interface TableSelectorProps {
@@ -19,8 +21,15 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
   const [selectedTable, setSelectedTable] = useState<number | null>(currentTable || null);
   const [isCustom, setIsCustom] = useState(false);
   const [customTableInput, setCustomTableInput] = useState('');
+  const [availableTables, setAvailableTables] = useState<TableItem[]>(() => tableService.getActiveTables());
 
-  const tableList = Array.from({ length: totalTables }, (_, i) => i + 1);
+  useEffect(() => {
+    const unsub = tableService.subscribe((tables) => {
+      const active = tables.filter((t) => t.isActive);
+      setAvailableTables(active.length > 0 ? active : tableService.getActiveTables());
+    });
+    return () => unsub();
+  }, []);
 
   const handleSelect = (num: number) => {
     setSelectedTable(num);
@@ -31,7 +40,7 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
   const handleCustomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const num = parseInt(customTableInput, 10);
-    if (num && num > 0 && num <= 99) {
+    if (num && num > 0 && num <= 999) {
       setSelectedTable(num);
       playTapSound();
     }
@@ -84,22 +93,44 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
           id="table-cards-grid"
           className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5 mb-4"
         >
-          {tableList.map((num) => {
+          {(availableTables.length > 0
+            ? availableTables
+            : Array.from({ length: totalTables }, (_, i) => ({
+                id: `table_${i + 1}`,
+                tableNumber: i + 1,
+                label: 'Main Dining',
+                capacity: 4,
+                isActive: true,
+              }))
+          ).map((tbl) => {
+            const num = tbl.tableNumber;
             const isSelected = selectedTable === num;
             return (
               <button
-                key={num}
+                key={tbl.id || num}
                 id={`table-select-btn-${num}`}
                 type="button"
                 onClick={() => handleSelect(num)}
-                className={`relative py-2.5 sm:py-3 px-2 rounded-lg sm:rounded-xl border text-center font-medium transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
+                className={`relative py-2 sm:py-2.5 px-2 rounded-lg sm:rounded-xl border text-center font-medium transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
                   isSelected
                     ? 'bg-[#516B84] text-white border-[#516B84] shadow-md scale-102 ring-2 ring-[#516B84]/30'
                     : 'bg-[#F7F7F6] text-[#1E293B] border-[#d8d6d3] hover:border-[#516B84]/60 hover:bg-white hover:shadow-xs active:scale-98'
                 }`}
               >
-                <span className="text-[10px] uppercase tracking-wider opacity-80">Table</span>
-                <span className="text-xl sm:text-2xl font-bold font-['Outfit']">{num}</span>
+                <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider opacity-80">
+                  <span>Table</span>
+                  {tbl.capacity && (
+                    <span className="inline-flex items-center gap-0.5 text-[8px] opacity-75">
+                      • {tbl.capacity}P
+                    </span>
+                  )}
+                </div>
+                <span className="text-xl sm:text-2xl font-bold font-['Outfit'] leading-tight">{num}</span>
+                {tbl.label && tbl.label !== `Table ${num}` && (
+                  <span className={`text-[8px] font-medium truncate max-w-[80px] ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
+                    {tbl.label}
+                  </span>
+                )}
                 {isSelected && (
                   <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-white text-[#516B84] rounded-full flex items-center justify-center shadow-xs">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />

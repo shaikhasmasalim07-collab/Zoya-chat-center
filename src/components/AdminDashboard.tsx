@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Order, MenuItem, OrderStatus, Category } from '../types';
+import { Order, MenuItem, OrderStatus, Category, CustomerReview } from '../types';
 import { orderService } from '../services/orderService';
+import { reviewService } from '../services/reviewService';
+import { isAuthorizedAdminEmail } from '../services/authService';
 import { OrderCard } from './OrderCard';
 import { MenuManager } from './MenuManager';
 import { CategoryManager } from './CategoryManager';
 import { CouponManager } from './CouponManager';
 import { BannerManager } from './BannerManager';
+import { TableManager } from './TableManager';
 import { InvoiceModal } from './InvoiceModal';
+import { firestoreSyncService, SyncStats } from '../services/firestoreSyncService';
+import { firebaseConfig } from '../services/firebaseConfig';
 import {
   ChefHat,
   Volume2,
@@ -27,6 +32,7 @@ import {
   Image as ImageIcon,
   Mail,
   ShieldCheck,
+  ShieldAlert,
   X,
   History,
   Calendar,
@@ -35,6 +41,11 @@ import {
   FileText,
   Smartphone,
   CheckCircle,
+  RefreshCw,
+  UploadCloud,
+  Star,
+  Trash2,
+  ThumbsUp,
 } from 'lucide-react';
 import { playNewOrderAlertSound, playTapSound, unlockAudio } from '../utils/sound';
 
@@ -61,7 +72,7 @@ interface AdminDashboardProps {
   onToggleSound: () => void;
 }
 
-type AdminTab = 'orders' | 'history' | 'tables' | 'menu' | 'categories' | 'coupons' | 'banners' | 'firebase';
+type AdminTab = 'orders' | 'history' | 'tables' | 'reviews' | 'menu' | 'categories' | 'coupons' | 'banners' | 'firebase';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   orders,
@@ -93,6 +104,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [latestAlertOrder, setLatestAlertOrder] = useState<Order | null>(null);
   const [isPlayingTestSound, setIsPlayingTestSound] = useState<boolean>(false);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStats | null>(null);
+  const [isSyncingFirestore, setIsSyncingFirestore] = useState<boolean>(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  // Customer Reviews Manager State
+  const [reviewsList, setReviewsList] = useState<CustomerReview[]>(() => reviewService.getReviews());
+  const [reviewRatingFilter, setReviewRatingFilter] = useState<'all' | '5' | '4' | '3' | '2' | '1'>('all');
+  const [reviewSearchQuery, setReviewSearchQuery] = useState<string>('');
+
+  useEffect(() => {
+    const unsub = reviewService.subscribe((list) => {
+      setReviewsList(list);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleAdminDeleteReview = async (id: string) => {
+    if (window.confirm('Kya aap is review ko confirm delete karna chahte hain?')) {
+      playTapSound();
+      await reviewService.deleteReview(id);
+    }
+  };
+
+  const filteredReviewsList = useMemo(() => {
+    return reviewsList.filter((r) => {
+      if (reviewRatingFilter !== 'all' && r.rating !== Number(reviewRatingFilter)) {
+        return false;
+      }
+      if (reviewSearchQuery.trim()) {
+        const q = reviewSearchQuery.toLowerCase();
+        const matchName = r.name.toLowerCase().includes(q);
+        const matchEmail = (r.userEmail || '').toLowerCase().includes(q);
+        const matchComment = r.comment.toLowerCase().includes(q);
+        const matchDish = (r.dishName || '').toLowerCase().includes(q);
+        return matchName || matchEmail || matchComment || matchDish;
+      }
+      return true;
+    });
+  }, [reviewsList, reviewRatingFilter, reviewSearchQuery]);
+
+  const handleSyncAllToFirestore = async () => {
+    playTapSound();
+    setIsSyncingFirestore(true);
+    setSyncMessage(null);
+    try {
+      const result = await firestoreSyncService.pushAllDataToFirestore();
+      setSyncStatus(result);
+      setSyncMessage('Success! All Menu Items, Categories, Coupons, Banners, Reviews & Orders were saved to Firestore.');
+    } catch (err: any) {
+      setSyncMessage(`Sync notice: ${err.message || 'Check Firebase rules and network.'}`);
+    } finally {
+      setIsSyncingFirestore(false);
+    }
+  };
 
   // Auto unlock audio and listen for live new incoming orders
   useEffect(() => {
@@ -216,6 +281,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const historyTotalRevenue = historicalOrders
     .filter((o) => o.status !== 'cancelled')
     .reduce((sum, o) => sum + o.totalAmount, 0);
+
+  // Strict Authorization Guard
+  if (!isAuthorizedAdminEmail(adminEmail)) {
+    return (
+      <div className="min-h-screen bg-[#E6E5E4] flex items-center justify-center p-4">
+        <div className="bg-white max-w-md w-full p-6 rounded-2xl border border-rose-200 shadow-xl text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-slate-800 font-['Outfit']">Admin Access Restricted</h2>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            The signed-in account (<span className="font-mono font-semibold text-rose-700">{adminEmail || 'unauthorized'}</span>) is not on the authorized administrator allowlist. Access is prohibited.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              playTapSound();
+              onCloseAdmin();
+            }}
+            className="w-full py-2.5 px-4 rounded-xl bg-[#516B84] hover:bg-[#3E5367] text-white font-bold text-xs transition-colors shadow-soft cursor-pointer"
+          >
+            Return to Customer Menu
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="admin-dashboard-container" className="min-h-screen bg-[#E6E5E4] pb-12">
@@ -472,6 +564,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           >
             <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
             <span>Tables</span>
+          </button>
+
+          <button
+            id="admin-tab-reviews"
+            type="button"
+            onClick={() => {
+              setActiveTab('reviews');
+              playTapSound();
+            }}
+            className={`flex-1 min-w-[105px] py-1.5 sm:py-2 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'reviews'
+                ? 'bg-[#516B84] text-white shadow-xs'
+                : 'text-slate-700 hover:bg-[#F7F7F6]'
+            }`}
+          >
+            <Star className="w-3.5 h-3.5 shrink-0 text-amber-400 fill-amber-400" />
+            <span>Reviews ({reviewsList.length})</span>
           </button>
 
           <button
@@ -887,69 +996,190 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
 
-        {/* Tab 2: Table Matrix View */}
+        {/* Tab 2: Dining Floor Tables Management */}
         {activeTab === 'tables' && (
+          <TableManager orders={orders} />
+        )}
+
+        {/* Tab 2.5: Customer Reviews Manager */}
+        {activeTab === 'reviews' && (
           <div className="bg-white rounded-xl p-4 sm:p-5 border border-[#d8d6d3] shadow-soft space-y-4">
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-[#516B84] font-['Outfit']">
-                Restaurant Floor Matrix (10 Tables)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Visual status of active table sessions, pending food items, and total bills.
-              </p>
+            {/* Header & Stats */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-xs">
+                  <Star className="w-5 h-5 fill-slate-950" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#516B84] font-['Outfit'] flex items-center gap-2">
+                    <span>Customer Reviews Management</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                      {reviewsList.length} Total
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Moderate customer ratings, delete spam/offensive feedback, or view guest sentiments
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Overall Average Score */}
+              <div className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <span className="font-bold text-sm text-slate-800">
+                    {reviewsList.length > 0
+                      ? (reviewsList.reduce((acc, r) => acc + r.rating, 0) / reviewsList.length).toFixed(1)
+                      : '5.0'}
+                  </span>
+                </div>
+                <span className="text-xs text-slate-400">/ 5.0 Average</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3">
-              {Array.from({ length: 10 }, (_, i) => i + 1).map((tNum) => {
-                const tableActiveOrders = orders.filter(
-                  (o) => o.tableNumber === tNum && o.status !== 'completed' && o.status !== 'cancelled'
-                );
-                const isOccupied = tableActiveOrders.length > 0;
-                const billTotal = tableActiveOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-
-                return (
-                  <div
-                    key={tNum}
-                    className={`rounded-xl p-3 border text-center transition-all flex flex-col justify-between ${
-                      isOccupied
-                        ? 'bg-[#EBF0F5] border-[#516B84] shadow-xs'
-                        : 'bg-[#F7F7F6] border-[#d8d6d3] opacity-80'
+            {/* Filter & Search Bar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
+              {/* Star Rating Pills */}
+              <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
+                {(['all', '5', '4', '3', '2', '1'] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => {
+                      playTapSound();
+                      setReviewRatingFilter(r);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                      reviewRatingFilter === r
+                        ? 'bg-[#516B84] text-white shadow-2xs'
+                        : 'bg-[#F7F7F6] text-slate-600 hover:bg-slate-200/70'
                     }`}
                   >
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[9px] uppercase font-bold text-slate-400">
-                          Table
-                        </span>
-                        <span
-                          className={`w-2 h-2 rounded-full ${
-                            isOccupied ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
-                          }`}
-                        />
-                      </div>
-                      <span className="text-2xl font-bold text-slate-800 font-['Outfit'] block mb-1">
-                        {tNum}
-                      </span>
-                    </div>
+                    {r === 'all' ? 'All Reviews' : `${r}★`}
+                  </button>
+                ))}
+              </div>
 
-                    <div className="pt-1.5 border-t border-slate-200/60 text-xs">
-                      {isOccupied ? (
-                        <>
-                          <span className="font-bold text-[#516B84] block font-['Outfit'] text-xs">
-                            ₹{billTotal}
-                          </span>
-                          <span className="text-[9px] text-slate-600 block">
-                            {tableActiveOrders.length} {tableActiveOrders.length === 1 ? 'order' : 'orders'}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-[10px] text-slate-400">Available</span>
+              {/* Search input */}
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={reviewSearchQuery}
+                  onChange={(e) => setReviewSearchQuery(e.target.value)}
+                  placeholder="Search reviewer, email, dish, keyword..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs bg-[#F7F7F6] border border-[#d8d6d3] focus:outline-none focus:border-[#516B84] text-slate-800 placeholder:text-slate-400"
+                />
+                {reviewSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setReviewSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Reviews List Grid */}
+            {filteredReviewsList.length === 0 ? (
+              <div className="text-center py-12 bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+                <Star className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-slate-600">No reviews found matching filter</p>
+                <p className="text-xs text-slate-400 mt-0.5">Try selecting another star rating or clearing search query</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {filteredReviewsList.map((rev) => (
+                  <div
+                    key={rev.id}
+                    className="bg-[#F7F7F6] rounded-xl border border-[#d8d6d3] p-3.5 flex flex-col justify-between hover:border-slate-300 transition-all shadow-2xs"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          {rev.userPhotoUrl ? (
+                            <img
+                              src={rev.userPhotoUrl}
+                              alt={rev.name}
+                              className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-[#516B84] text-white flex items-center justify-center text-xs font-bold">
+                              {rev.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-xs text-slate-800">{rev.name}</span>
+                              {rev.authProvider === 'google' && (
+                                <span className="bg-blue-100 text-blue-800 text-[8px] font-bold px-1 py-0.2 rounded border border-blue-200">
+                                  Google Auth
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono block">
+                              {rev.userEmail || 'Guest'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Stars */}
+                        <div className="flex items-center gap-0.5 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 shrink-0">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`w-3 h-3 ${
+                                star <= rev.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {rev.dishName && (
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#516B84]/10 text-[#516B84] text-[9px] font-bold mb-1.5">
+                          <UtensilsCrossed className="w-2.5 h-2.5" />
+                          <span>Mentioned Dish: {rev.dishName}</span>
+                        </div>
+                      )}
+
+                      <p className="text-xs text-slate-700 leading-relaxed font-normal mb-2">
+                        "{rev.comment}"
+                      </p>
+
+                      {rev.tags && rev.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {rev.tags.map((t, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[8px] font-medium bg-white text-slate-600 px-1.5 py-0.2 rounded border border-slate-200"
+                            >
+                              #{t}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
+
+                    <div className="pt-2 border-t border-slate-200/70 flex items-center justify-between text-[10px] text-slate-400">
+                      <span>{new Date(rev.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAdminDeleteReview(rev.id)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold text-[10px] transition-colors cursor-pointer"
+                        title="Permanently Delete Review"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Delete Review</span>
+                      </button>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -988,49 +1218,136 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Tab 6: Database & Firebase Architecture Information */}
         {activeTab === 'firebase' && (
           <div className="bg-white rounded-xl p-4 sm:p-5 border border-[#d8d6d3] shadow-soft space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center">
-                  <Database className="w-4 h-4" />
+                <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs">
+                  <Database className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-[#516B84] font-['Outfit'] flex items-center gap-2">
+                  <h3 className="text-base font-bold text-[#516B84] font-['Outfit'] flex items-center gap-2">
                     <span>Firebase Cloud Firestore</span>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Connected
+                      Live Connected
                     </span>
                   </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Project: <strong className="text-slate-800">zoya-chat-center</strong> · Cloud Sync Active
+                  <p className="text-xs text-slate-500">
+                    Connected Project: <strong className="text-slate-800 font-mono">{firebaseConfig.projectId}</strong>
                   </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSyncAllToFirestore}
+                disabled={isSyncingFirestore}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-sm active:scale-98 disabled:opacity-50"
+              >
+                {isSyncingFirestore ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Syncing to Firestore...</span>
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="w-4 h-4" />
+                    <span>Upload & Save All Data to Firestore</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {syncMessage && (
+              <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
+                syncMessage.includes('Success') ? 'bg-emerald-50 text-emerald-900 border border-emerald-200' : 'bg-amber-50 text-amber-900 border border-amber-200'
+              }`}>
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span>{syncMessage}</span>
+              </div>
+            )}
+
+            {/* Config & Collection Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="bg-[#F7F7F6] p-3 rounded-lg border border-[#d8d6d3]">
+                <span className="text-[9px] uppercase font-bold text-slate-500 block mb-0.5">Project ID</span>
+                <span className="text-xs font-mono font-bold text-slate-800">{firebaseConfig.projectId}</span>
+              </div>
+              <div className="bg-[#F7F7F6] p-3 rounded-lg border border-[#d8d6d3]">
+                <span className="text-[9px] uppercase font-bold text-slate-500 block mb-0.5">Auth Domain</span>
+                <span className="text-xs font-mono font-bold text-slate-800 truncate block">{firebaseConfig.authDomain}</span>
+              </div>
+              <div className="bg-[#F7F7F6] p-3 rounded-lg border border-[#d8d6d3]">
+                <span className="text-[9px] uppercase font-bold text-slate-500 block mb-0.5">Real-time Sync</span>
+                <span className="text-xs font-mono font-bold text-emerald-700 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Firestore onSnapshot Active
+                </span>
+              </div>
+            </div>
+
+            {/* Firestore Collections Matrix */}
+            <div className="border border-slate-100 rounded-xl p-3 bg-slate-50/70 space-y-2">
+              <h4 className="text-xs font-bold text-[#516B84] uppercase tracking-wider font-['Outfit']">
+                Active Firestore Collections & Document Sync
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-slate-700 font-semibold">/menu_items</span>
+                    <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[10px]">{menuItems.length} items</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">Dishes, prices, photos, availability</p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-slate-700 font-semibold">/categories</span>
+                    <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[10px]">{categories.length} categories</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">Chaat, Momos, Beverages, etc.</p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-slate-700 font-semibold">/orders</span>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px]">{orders.length} orders</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">Table orders, statuses, invoices</p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-slate-700 font-semibold">/coupons</span>
+                    <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 font-bold text-[10px]">Active</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">ZOYA20, FLAT50, discounts</p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-slate-700 font-semibold">/promo_banners</span>
+                    <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-bold text-[10px]">Active</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">Carousel offers & chef specials</p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-slate-700 font-semibold">/reviews</span>
+                    <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-bold text-[10px]">Active</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">Customer verified reviews & ratings</p>
                 </div>
               </div>
             </div>
 
-            {/* Quick config preview */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div className="bg-[#F7F7F6] p-3 rounded-lg border border-[#d8d6d3]">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block mb-0.5">Project ID</span>
-                <span className="text-xs font-mono font-bold text-slate-800">zoya-chat-center</span>
-              </div>
-              <div className="bg-[#F7F7F6] p-3 rounded-lg border border-[#d8d6d3]">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block mb-0.5">Collections</span>
-                <span className="text-xs font-mono font-bold text-[#516B84]">/orders, /menu_items, /coupons, /promo_banners</span>
-              </div>
-              <div className="bg-[#F7F7F6] p-3 rounded-lg border border-[#d8d6d3]">
-                <span className="text-[9px] uppercase font-bold text-slate-500 block mb-0.5">Real-time Stream</span>
-                <span className="text-xs font-mono font-bold text-emerald-700">Firestore onSnapshot</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-lg bg-emerald-50/50 border border-emerald-200 text-xs leading-relaxed space-y-1.5">
+            <div className="p-3.5 rounded-lg bg-emerald-50/50 border border-emerald-200 text-xs leading-relaxed space-y-1">
               <p className="font-semibold text-emerald-950 flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>Cloud Firestore is live!</span>
+                <span>Real-Time Cloud Firestore Sync is Active!</span>
               </p>
               <p className="text-emerald-900 text-[11px]">
-                Orders, Menu Products, Coupons, and Banners are saved in Firebase Firestore and automatically synchronized across all customer table devices and kitchen screens in real time.
+                Whenever you add or update any dish, category, coupon, banner, order status, or customer review, it is automatically written to your Firestore project (<strong>seventh-service-671nt-bbfc5</strong>) and synchronized across all customer phones and admin panels in real-time.
               </p>
             </div>
           </div>

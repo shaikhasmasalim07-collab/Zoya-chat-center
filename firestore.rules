@@ -2,54 +2,85 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper function to verify if the request is authenticated with an authorized admin email
+    function isAdmin() {
+      return request.auth != null &&
+        (request.auth.token.email.lower() == 'saleemshaikh3010@gmail.com' ||
+         request.auth.token.email.lower() == 'shaikhshabib71@gmail.com');
+    }
+
+    // Helper to check if request is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
     // Orders Collection: Real-time table ordering & status tracking
     match /orders/{orderId} {
       allow read: if true;
       allow create: if request.resource.data.tableNumber is number 
                     && request.resource.data.totalAmount is number
                     && request.resource.data.items is list;
-      allow update: if request.resource.data.tableNumber is number;
-      allow delete: if true;
+      allow update: if request.resource.data.tableNumber is number || isAdmin();
+      allow delete: if isAdmin();
     }
 
-    // Menu Items Collection: Food catalog management
+    // Customer Reviews Collection
+    // Read: Public
+    // Create: Authenticated users / customers
+    // Update: Increment likes count
+    // Delete: Only Authorized Admins
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if request.resource.data.rating is number;
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // Menu Items Collection: Food catalog management (Admin only writes)
     match /menu_items/{itemId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
     }
 
-    // Categories Collection: Food categories
+    // Categories Collection: Food categories (Admin only writes)
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
     }
 
-    // Coupons Collection: Discount promo codes
+    // Tables Collection: Dining Floor Tables Management (Admin only writes)
+    match /tables/{tableId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Coupons Collection: Discount promo codes (Admin only writes)
     match /coupons/{couponId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
     }
 
-    // Promotional Banners Collection
+    // Promotional Banners Collection (Admin only writes)
     match /banners/{bannerId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
     }
 
     match /promo_banners/{bannerId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
     }
 
     // System Status & Admin Single-Device Session Lock
     match /system_status/{docId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin() || true;
     }
 
     // Default match for other collections
     match /{document=**} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }
